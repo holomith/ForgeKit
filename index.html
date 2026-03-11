@@ -699,14 +699,14 @@ header { width: 100%; box-sizing: border-box; }
       <svg viewBox="0 0 14 14"><path d="M2 7h10M9 4l3 3-3 3"/><path d="M5 4L2 7l3 3"/></svg>
       Converti File
     </button>
-      <button class="nav-tab" id="tab-pdf" onclick="switchTab('pdf')"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="12" height="12"><rect x="2" y="1" width="10" height="12" rx="1.5"/><path d="M5 5h4M5 8h2"/></svg><span>PDF Tools</span></button>
+      <button class="nav-tab" id="tab-pdf" onclick="switchTab('pdf')"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="12" height="12"><rect x="2" y="1" width="10" height="12" rx="1.5"/><path d="M5 5h4M5 8h2"/></svg><span>Strumenti PDF</span></button>
     <button class="nav-tab" id="tab-ocr" onclick="switchTab('ocr')">
       <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><rect x="1" y="3" width="8" height="8" rx="1"/><path d="M10 5h2M10 7h2M10 9h2"/><path d="M3 6h4M3 8h2"/></svg>
-      <span>OCR</span>
+      <span>Leggi Testo</span>
     </button>
     <button class="nav-tab" id="tab-qr" onclick="switchTab('qr')">
       <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><rect x="1" y="1" width="5" height="5" rx="0.8"/><rect x="8" y="1" width="5" height="5" rx="0.8"/><rect x="1" y="8" width="5" height="5" rx="0.8"/><rect x="3" y="3" width="1.5" height="1.5"/><rect x="10" y="3" width="1.5" height="1.5"/><rect x="3" y="10" width="1.5" height="1.5"/><path d="M8 8h1.5M8 10h2M10 8v2M11.5 10v1.5M11.5 8h1.5"/></svg>
-      <span>QR</span>
+      <span>Codice QR</span>
     </button>
 </nav>
   <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
@@ -1067,41 +1067,145 @@ header { width: 100%; box-sizing: border-box; }
 
 <!-- MODALE MANUALE -->
 <div id="faqModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);backdrop-filter:blur(5px);align-items:center;justify-content:center;">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;max-width:720px;width:94%;max-height:88vh;overflow-y:auto;padding:36px 32px;position:relative;box-shadow:0 24px 60px rgba(0,0,0,.25);">
-    <button onclick="document.getElementById('faqModal').style.display='none'" style="position:absolute;top:16px;right:16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--ink2);font-family:var(--sans);">✕ Chiudi</button>
-    <h2 style="font-size:22px;font-weight:700;letter-spacing:-.03em;margin-bottom:4px;">📖 Manuale d'uso — ForgeKit</h2>
-    <p style="color:var(--ink3);font-size:13px;margin-bottom:24px;">Due strumenti in uno · tutto offline · nessun dato inviato su internet</p>
-    <div style="display:flex;flex-direction:column;gap:14px;">
-      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:18px 20px;">
-        <h3 style="font-size:14px;font-weight:600;margin-bottom:10px;">✏️ Tab 1 — Rinomina File</h3>
-        <ul style="font-size:13px;color:var(--ink2);line-height:2;padding-left:18px;">
-          <li><strong>Carica file</strong>: trascina o clicca sul riquadro</li>
-          <li><strong>Attiva regole</strong> a sinistra: prefisso, suffisso, numerazione, maiuscole, cerca&amp;sostituisci, pulizia</li>
-          <li><strong>Anteprima live</strong>: vedi subito il nuovo nome</li>
-          <li><strong>Applica</strong>: 1 file → download diretto · più file → ZIP automatico</li>
-        </ul>
-      </div>
-      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:18px 20px;">
-        <h3 style="font-size:14px;font-weight:600;margin-bottom:10px;">🔄 Tab 2 — Converti File</h3>
-        <ul style="font-size:13px;color:var(--ink2);line-height:2;padding-left:18px;">
-          <li><strong>Scegli la conversione</strong> dal menu a sinistra</li>
-          <li><strong>Carica i file</strong> (anche 20+ insieme)</li>
-          <li>Regola <strong>qualità</strong> e <strong>colore sfondo</strong> per le immagini</li>
-          <li>Clicca <strong>Converti &amp; Scarica</strong> → ricevi un ZIP con tutti i file convertiti</li>
-          <li>Conversioni disponibili: JPG/PNG/WebP/SVG, CSV↔JSON, TXT→MD, Base64, ZIP</li>
-        </ul>
-      </div>
-      <div style="background:#fffbea;border:1px solid #e8d55a;border-radius:12px;padding:16px 20px;">
-        <h3 style="font-size:14px;font-weight:600;margin-bottom:10px;color:#7a6000;">❓ FAQ</h3>
-        <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;color:var(--ink2);line-height:1.8;">
-          <div><strong>I file vengono inviati su internet?</strong> No, tutto avviene nel browser.</div>
-          <div><strong>Funziona offline?</strong> Sì, 100% offline dopo il primo caricamento.</div>
-          <div><strong>I file originali vengono modificati?</strong> No, vengono create nuove copie.</div>
-          <div><strong>Quanti file posso convertire insieme?</strong> Nessun limite, ma molti file grandi richiedono più tempo.</div>
-          <div><strong>WebP è supportato da tutti i browser?</strong> Sì, da Chrome, Edge, Firefox e Safari moderni.</div>
-        </div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;max-width:760px;width:94%;max-height:90vh;overflow-y:auto;padding:36px 32px;position:relative;box-shadow:0 24px 60px rgba(0,0,0,.25);">
+    <button onclick="document.getElementById('faqModal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--ink3);font-size:20px;cursor:pointer;line-height:1">✕</button>
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue-acc)" stroke-width="1.6" stroke-linecap="round" width="28" height="28"><circle cx="12" cy="12" r="10"/><path d="M12 17v-5M12 8h.01"/></svg>
+      <div>
+        <div style="font-size:20px;font-weight:800;color:var(--ink)">Manuale ForgeKit</div>
+        <div style="font-size:12px;color:var(--ink3);margin-top:2px">Guida completa a tutte le funzionalità · v3.1</div>
       </div>
     </div>
+
+    <!-- ① RINOMINA FILE -->
+    <div style="margin-bottom:22px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div style="width:28px;height:28px;border-radius:7px;background:var(--blue-acc);display:flex;align-items:center;justify-content:center;">
+          <svg viewBox="0 0 14 14" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" width="14" height="14"><path d="M2 4h6M2 7h8M2 10h5"/><path d="M10 8l1.5 1.5L14 7"/></svg>
+        </div>
+        <span style="font-size:15px;font-weight:700;color:var(--ink)">① Rinomina File</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:10px;padding:14px 16px;font-size:12.5px;color:var(--ink2);line-height:1.8;">
+        Rinomina in blocco qualsiasi tipo di file direttamente nel browser, senza installare nulla.
+        <ul style="margin:8px 0 0 16px;padding:0;">
+          <li><strong>Numerazione automatica</strong> — aggiunge un numero progressivo a ogni file (001, 002…)</li>
+          <li><strong>Prefisso / Suffisso</strong> — aggiunge testo prima o dopo il nome originale</li>
+          <li><strong>Data automatica</strong> — inserisce la data odierna nel nome (formato AAAA-MM-GG)</li>
+          <li><strong>Trova e sostituisci</strong> — cerca una parola nel nome e la sostituisce con un'altra</li>
+          <li><strong>Maiuscolo / Minuscolo / Title Case</strong> — cambia la capitalizzazione del nome</li>
+          <li><strong>Rimuovi spazi</strong> — sostituisce gli spazi con underscore o trattini</li>
+          <li><strong>Anteprima in tempo reale</strong> — vedi il risultato prima di scaricare</li>
+          <li><strong>Download ZIP</strong> — scarica tutti i file rinominati in un archivio compresso</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ② CONVERTI FILE -->
+    <div style="margin-bottom:22px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div style="width:28px;height:28px;border-radius:7px;background:#8b5cf6;display:flex;align-items:center;justify-content:center;">
+          <svg viewBox="0 0 14 14" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" width="14" height="14"><path d="M2 7h10M9 4l3 3-3 3"/><path d="M5 4L2 7l3 3"/></svg>
+        </div>
+        <span style="font-size:15px;font-weight:700;color:var(--ink)">② Converti File</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:10px;padding:14px 16px;font-size:12.5px;color:var(--ink2);line-height:1.8;">
+        Converte immagini e documenti da un formato all'altro direttamente nel browser.
+        <ul style="margin:8px 0 0 16px;padding:0;">
+          <li><strong>Immagini</strong> — JPG ↔ PNG ↔ WEBP ↔ BMP ↔ GIF (conversione multipla in batch)</li>
+          <li><strong>Qualità JPEG</strong> — regola la compressione con uno slider (10%–100%)</li>
+          <li><strong>Ridimensionamento</strong> — imposta larghezza/altezza in pixel mantenendo le proporzioni</li>
+          <li><strong>CSV → JSON / JSON → CSV</strong> — converti dati tabellari in entrambi i formati</li>
+          <li><strong>Testo → Base64 / Base64 → Testo</strong> — encoding/decoding istantaneo</li>
+          <li><strong>Markdown → HTML</strong> — converte testo Markdown in pagina HTML pronta</li>
+          <li>Tutto elaborato localmente: i tuoi file non vengono mai caricati su server esterni</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ③ STRUMENTI PDF -->
+    <div style="margin-bottom:22px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div style="width:28px;height:28px;border-radius:7px;background:#ef4444;display:flex;align-items:center;justify-content:center;">
+          <svg viewBox="0 0 14 14" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" width="14" height="14"><rect x="2" y="1" width="10" height="12" rx="1.5"/><path d="M5 5h4M5 8h2"/></svg>
+        </div>
+        <span style="font-size:15px;font-weight:700;color:var(--ink)">③ Strumenti PDF</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:10px;padding:14px 16px;font-size:12.5px;color:var(--ink2);line-height:1.8;">
+        Modifica e gestisci file PDF senza bisogno di Acrobat o strumenti online.
+        <ul style="margin:8px 0 0 16px;padding:0;">
+          <li><strong>Unisci PDF</strong> — combina più file PDF in uno solo, con ordinamento drag&drop</li>
+          <li><strong>Dividi PDF</strong> — estrae pagine singole o intervalli (es. pag. 2–5) in file separati</li>
+          <li><strong>Comprimi PDF</strong> — riduce il peso del file ottimizzando le risorse interne</li>
+          <li><strong>Ruota pagine</strong> — ruota singole pagine o tutto il documento di 90°/180°/270°</li>
+          <li><strong>Elimina pagine</strong> — rimuove pagine specifiche dal documento</li>
+          <li><strong>Immagini → PDF</strong> — converte una o più immagini JPG/PNG in un PDF multipagina</li>
+          <li><strong>PDF → Immagini</strong> — esporta ogni pagina come immagine PNG</li>
+          <li>Basato su pdf-lib — elaborazione 100% locale, nessun upload</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ④ LEGGI TESTO (OCR) -->
+    <div style="margin-bottom:22px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div style="width:28px;height:28px;border-radius:7px;background:#f59e0b;display:flex;align-items:center;justify-content:center;">
+          <svg viewBox="0 0 14 14" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" width="14" height="14"><rect x="1" y="3" width="8" height="8" rx="1"/><path d="M10 5h2M10 7h2M10 9h2"/><path d="M3 6h4M3 8h2"/></svg>
+        </div>
+        <span style="font-size:15px;font-weight:700;color:var(--ink)">④ Leggi Testo (OCR)</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:10px;padding:14px 16px;font-size:12.5px;color:var(--ink2);line-height:1.8;">
+        Estrae il testo da immagini e documenti scansionati usando il motore Tesseract.js.
+        <ul style="margin:8px 0 0 16px;padding:0;">
+          <li><strong>Carica immagine</strong> — trascina o seleziona JPG, PNG, WEBP, BMP, TIFF</li>
+          <li><strong>Oltre 40 lingue</strong> — italiano, inglese, tedesco, francese, spagnolo e molte altre</li>
+          <li><strong>Barra di avanzamento</strong> — mostra il progresso durante l'elaborazione</li>
+          <li><strong>Copia testo</strong> — copia il risultato con un click</li>
+          <li><strong>Salva come TXT</strong> — scarica il testo estratto come file .txt</li>
+          <li><strong>Regione di ritaglio</strong> — elabora solo una parte dell'immagine per risultati più precisi</li>
+          <li>Richiede connessione internet al primo utilizzo per scaricare i modelli linguistici</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ⑤ CODICE QR -->
+    <div style="margin-bottom:22px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div style="width:28px;height:28px;border-radius:7px;background:#10b981;display:flex;align-items:center;justify-content:center;">
+          <svg viewBox="0 0 14 14" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" width="14" height="14"><rect x="1" y="1" width="5" height="5" rx="0.8"/><rect x="8" y="1" width="5" height="5" rx="0.8"/><rect x="1" y="8" width="5" height="5" rx="0.8"/><rect x="3" y="3" width="1.5" height="1.5"/><rect x="10" y="3" width="1.5" height="1.5"/><rect x="3" y="10" width="1.5" height="1.5"/></svg>
+        </div>
+        <span style="font-size:15px;font-weight:700;color:var(--ink)">⑤ Codice QR</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:10px;padding:14px 16px;font-size:12.5px;color:var(--ink2);line-height:1.8;">
+        Genera e legge QR Code direttamente nel browser, senza app esterne.
+        <br><strong style="color:var(--ink)">Genera QR da:</strong>
+        <ul style="margin:6px 0 6px 16px;padding:0;">
+          <li><strong>URL / Link</strong> — genera un QR che apre direttamente un sito web</li>
+          <li><strong>Testo libero</strong> — qualsiasi testo, messaggio o nota</li>
+          <li><strong>Email</strong> — precompila destinatario, oggetto e corpo del messaggio</li>
+          <li><strong>WiFi</strong> — permette la connessione automatica alla rete WiFi inquadrando il QR</li>
+          <li><strong>vCard</strong> — crea un QR con nome, telefono, email e azienda (aggiunge il contatto in rubrica)</li>
+        </ul>
+        <strong style="color:var(--ink)">Opzioni di stile:</strong>
+        <ul style="margin:6px 0 6px 16px;padding:0;">
+          <li>Colore moduli e sfondo personalizzabile</li>
+          <li>Dimensione da 128px a 512px</li>
+          <li>Correzione errori L / M / Q / H (H consigliato se aggiungi un logo)</li>
+          <li>Download in formato <strong>PNG</strong></li>
+        </ul>
+        <strong style="color:var(--ink)">Leggi QR:</strong> carica un'immagine contenente un QR Code e ne estrae automaticamente il contenuto. Supporta PNG, JPG, WEBP. Il testo estratto può essere copiato con un click.
+      </div>
+    </div>
+
+    <!-- NOTE GENERALI -->
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-size:12px;color:var(--ink3);line-height:1.7;">
+      <strong style="color:var(--ink)">ℹ️ Note generali</strong><br>
+      ForgeKit è un file HTML singolo — non installa nulla, non invia dati a server esterni, funziona su qualsiasi browser moderno (Chrome, Edge, Firefox, Safari). 
+      Richiede internet solo al primo avvio per scaricare le librerie (pdf-lib, Tesseract, qrcodejs, jsQR), 
+      che vengono poi salvate automaticamente per l'uso offline. 
+      Compatibile con Windows, macOS e Linux.
+    </div>
+
   </div>
 </div>
 
