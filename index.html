@@ -1,6 +1,85 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+<script>
+/* ══ OFFLINE LIBRARY LOADER ══════════════════════════════════
+   Carica le librerie dal CDN al primo avvio e le salva in
+   localStorage per uso completamente offline.
+   Versione: ForgeKit offline-first
+═══════════════════════════════════════════════════════════════ */
+(function(){
+  var LIBS = [
+    { key:'fk_qrcodejs', tag:'script', src:'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js', check:function(){return typeof QRCode!=='undefined';} },
+    { key:'fk_jsqr',     tag:'script', src:'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js',                check:function(){return typeof jsQR!=='undefined';} },
+    { key:'fk_pdflib',   tag:'script', src:'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js',                check:function(){return typeof PDFLib!=='undefined';} },
+    { key:'fk_tesseract',tag:'script', src:'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',   check:function(){return typeof Tesseract!=='undefined';} },
+  ];
+
+  var loaded = 0;
+  var total  = LIBS.length;
+  var offlineBanner = null;
+
+  function showOfflineBanner(){
+    if(offlineBanner) return;
+    offlineBanner = document.createElement('div');
+    offlineBanner.id = 'fk-offline-banner';
+    offlineBanner.innerHTML = '📡 <strong>Modalità offline</strong> — alcune funzionalità (OCR, PDF) potrebbero non essere disponibili. Connettiti una volta per scaricare le librerie. <button onclick="this.parentNode.remove()" style="background:none;border:none;color:inherit;cursor:pointer;font-size:14px;margin-left:8px">✕</button>';
+    offlineBanner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#b45309;color:#fff;padding:8px 16px;font-size:12px;display:flex;align-items:center;gap:6px;';
+    document.body.appendChild(offlineBanner);
+    setTimeout(function(){ if(offlineBanner) offlineBanner.remove(); }, 8000);
+  }
+
+  function injectScript(code, onDone){
+    var s = document.createElement('script');
+    s.textContent = code;
+    document.head.appendChild(s);
+    if(onDone) onDone();
+  }
+
+  function loadLib(lib, onDone){
+    // 1. Prova localStorage
+    var cached = null;
+    try { cached = localStorage.getItem(lib.key); } catch(e){}
+    if(cached){
+      injectScript(cached, onDone);
+      return;
+    }
+    // 2. Prova CDN
+    var s = document.createElement('script');
+    s.src = lib.src;
+    s.onload = function(){
+      // Salva in localStorage per uso offline
+      try {
+        fetch(lib.src).then(function(r){ return r.text(); }).then(function(t){
+          try { localStorage.setItem(lib.key, t); } catch(e){}
+        }).catch(function(){});
+      } catch(e){}
+      if(onDone) onDone();
+    };
+    s.onerror = function(){
+      console.warn('ForgeKit: impossibile caricare ' + lib.key + ' — offline mode');
+      showOfflineBanner();
+      if(onDone) onDone();
+    };
+    document.head.appendChild(s);
+  }
+
+  function loadNext(idx){
+    if(idx >= LIBS.length){
+      // Tutte le librerie processate — init app
+      if(typeof window.fkInit === 'function') window.fkInit();
+      return;
+    }
+    loadLib(LIBS[idx], function(){ loadNext(idx+1); });
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ loadNext(0); });
+  } else {
+    loadNext(0);
+  }
+})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ForgeKit · Multi-Tool</title>
@@ -451,8 +530,7 @@ header { width: 100%; box-sizing: border-box; }
 .hdr-widget:hover { border-color: var(--border2); color: var(--ink); }
 .hdr-widget svg { opacity: 0.7; flex-shrink: 0; }
 .hdr-widget-sep { opacity: 0.4; }
-#weatherIcon { font-size: 13px; line-height: 1; }
-#weatherDesc { color: var(--ink3); font-size: 10px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 
 /* ══════════════════════════════════════════
    OCR PAGE
@@ -516,62 +594,72 @@ header { width: 100%; box-sizing: border-box; }
 .ocr-textarea { flex:1; resize:none; border:1px solid var(--border); border-radius:0 0 12px 12px; background:var(--surface); color:var(--ink); font-size:13px; line-height:1.7; padding:14px; font-family:var(--mono,'Menlo','Consolas',monospace); outline:none; transition:border-color 0.15s; }
 .ocr-textarea:focus { border-color:var(--blue-acc); }
 
+
+.qr-generate-btn:hover { opacity:0.85; }
+.qr-generate-btn:active { opacity:0.7; transform:scale(0.98); }
+
+#qrGeneratePanel { display:flex; flex-direction:column; gap:12px; }
+
 /* ══════════════════════════════════════════
-   QR PAGE
+   QR PAGE v2
 ══════════════════════════════════════════ */
 #page-qr { display:none; }
 #page-qr.active { display:flex; width:100%; height:calc(100vh - 64px); }
-.qr-layout { display:grid; grid-template-columns:230px 1fr; width:100%; height:100%; }
+
+.qr-wrap { display:grid; grid-template-columns:210px 1fr 1fr; width:100%; height:100%; overflow:hidden; }
 
 /* Sidebar */
-.qr-sidebar { background:var(--surface2); border-right:1px solid var(--border); padding:18px 14px; display:flex; flex-direction:column; gap:12px; overflow-y:auto; }
-.qr-type-list { display:flex; flex-direction:column; gap:4px; }
-.qr-type-btn { display:flex; align-items:center; gap:9px; height:34px; padding:0 10px; border-radius:9px; border:1px solid transparent; background:transparent; color:var(--ink2); font-size:12.5px; font-weight:500; cursor:pointer; font-family:var(--sans); text-align:left; transition:all 0.15s; }
-.qr-type-btn:hover { background:var(--surface); border-color:var(--border); color:var(--ink); }
-.qr-type-btn.active { background:var(--blue-acc); border-color:var(--blue-acc); color:#fff; }
-.qr-type-btn.active svg { stroke:#fff; }
-.qr-sidebar-sep { height:1px; background:var(--border); margin:4px 0; }
-.qr-section { display:flex; flex-direction:column; gap:7px; }
-.qr-color-row { display:flex; flex-direction:column; gap:6px; }
-.qr-color-label { display:flex; align-items:center; justify-content:space-between; font-size:12px; color:var(--ink2); }
-.qr-color-label input[type=color] { width:32px; height:24px; border:1px solid var(--border2); border-radius:5px; cursor:pointer; padding:1px; background:transparent; }
-.qr-size-row { display:flex; align-items:center; gap:10px; }
-.qr-range { flex:1; accent-color:var(--blue-acc); }
-.qr-range-val { font-size:11px; color:var(--ink3); white-space:nowrap; min-width:36px; text-align:right; }
-.qr-dl-btns { display:flex; flex-direction:column; gap:8px; }
+.qr-sidebar { background:var(--surface2); border-right:1px solid var(--border); padding:16px 12px; display:flex; flex-direction:column; gap:8px; overflow-y:auto; }
+.qr-mode-list { display:flex; flex-direction:column; gap:3px; }
+.qr-mode-btn { display:flex; align-items:center; gap:8px; height:32px; padding:0 10px; border-radius:8px; border:1px solid transparent; background:transparent; color:var(--ink2); font-size:12px; font-weight:600; cursor:pointer; font-family:var(--sans); transition:all 0.15s; }
+.qr-mode-btn.active { background:var(--blue-acc); color:#fff; border-color:var(--blue-acc); }
+.qr-mode-btn:hover:not(.active) { background:var(--surface); border-color:var(--border); }
+.qr-type-btn { display:flex; align-items:center; gap:8px; height:30px; padding:0 10px; border-radius:7px; border:1px solid transparent; background:transparent; color:var(--ink2); font-size:12px; font-weight:500; cursor:pointer; font-family:var(--sans); transition:all 0.15s; }
+.qr-type-btn.active { background:var(--surface); border-color:var(--border2); color:var(--ink); font-weight:600; }
+.qr-type-btn:hover:not(.active) { background:var(--surface); color:var(--ink); }
+.qr-sidebar-sep { height:1px; background:var(--border); margin:4px 0; flex-shrink:0; }
+.qr-opt-row { display:flex; align-items:center; justify-content:space-between; font-size:12px; color:var(--ink2); padding:2px 0; }
+.qr-opt-row input[type=color] { width:30px; height:22px; border:1px solid var(--border2); border-radius:5px; cursor:pointer; padding:1px; background:transparent; }
+.qr-range { accent-color:var(--blue-acc); width:100%; margin:4px 0; }
 
-/* Main */
-.qr-main { display:flex; gap:16px; padding:20px 24px; overflow-y:auto; flex:1; min-width:0; box-sizing:border-box; }
-.qr-form-wrap { flex:1; min-width:220px; max-width:420px; display:flex; flex-direction:column; gap:0; }
-.qr-form { display:none; flex-direction:column; gap:12px; }
+/* Center */
+.qr-center { padding:20px 20px; display:flex; flex-direction:column; gap:14px; overflow-y:auto; border-right:1px solid var(--border); }
+.qr-form { display:none; flex-direction:column; gap:10px; }
 .qr-form.active { display:flex; }
-.qr-field { display:flex; flex-direction:column; gap:5px; }
-.qr-label { font-size:11.5px; font-weight:600; color:var(--ink3); letter-spacing:0.02em; }
-.qr-input { height:34px; padding:0 10px; border-radius:9px; border:1px solid var(--border2); background:var(--surface); color:var(--ink); font-size:13px; font-family:var(--sans); outline:none; transition:border-color 0.15s; width:100%; box-sizing:border-box; }
+.qr-field { display:flex; flex-direction:column; gap:4px; }
+.qr-label { font-size:11px; font-weight:600; color:var(--ink3); text-transform:uppercase; letter-spacing:0.05em; }
+.qr-input { height:34px; padding:0 10px; border-radius:9px; border:1px solid var(--border2); background:var(--surface); color:var(--ink); font-size:13px; font-family:var(--sans); outline:none; width:100%; box-sizing:border-box; transition:border-color 0.15s; }
 .qr-input:focus { border-color:var(--blue-acc); }
-.qr-textarea-sm { height:auto; padding:8px 10px; resize:vertical; }
-.qr-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.qr-generate-btn { display:flex; align-items:center; justify-content:center; gap:8px; height:40px; border-radius:10px; border:none; background:var(--blue-acc); color:#fff; font-size:13px; font-weight:700; cursor:pointer; font-family:var(--sans); width:100%; margin-top:6px; transition:opacity 0.15s, transform 0.1s; flex-shrink:0; letter-spacing:0.01em; }
+.qr-generate-btn:hover { opacity:0.88; }
+.qr-generate-btn:active { transform:scale(0.98); opacity:0.75; }
 
-/* Preview */
-.qr-preview-wrap { flex:1; display:flex; flex-direction:column; gap:14px; align-items:center; }
-.qr-canvas-box { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:24px; display:flex; align-items:center; justify-content:center; min-width:220px; min-height:220px; }
-.qr-empty-state { display:flex; flex-direction:column; align-items:center; gap:12px; color:var(--ink3); text-align:center; }
-.qr-empty-state p { font-size:12px; line-height:1.6; margin:0; }
-.qr-empty-state svg { opacity:0.3; }
+/* Read drop */
+.qr-read-drop { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; min-height:180px; padding:24px; border-radius:14px; border:1.5px dashed var(--border2); background:var(--surface); color:var(--ink3); cursor:pointer; transition:all 0.15s; text-align:center; }
+.qr-read-drop:hover { border-color:var(--blue-acc); background:var(--blue-tint,rgba(56,139,253,.05)); }
+.qr-read-label { font-size:10.5px; font-weight:600; color:var(--ink3); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:4px; }
+.qr-read-text { font-size:13px; color:var(--ink); background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; word-break:break-all; line-height:1.6; max-height:160px; overflow-y:auto; }
 
-/* Reader */
-.qr-reader-wrap { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
-.qr-reader-title { display:flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:var(--ink2); }
-.qr-reader-drop { display:flex; align-items:center; gap:8px; height:36px; padding:0 14px; border-radius:9px; border:1.5px dashed var(--border2); background:var(--surface2); color:var(--ink3); font-size:12px; cursor:pointer; transition:all 0.15s; }
-.qr-reader-drop:hover { border-color:var(--blue-acc); color:var(--ink); }
-.qr-read-result { display:flex; flex-direction:column; gap:4px; }
-.qr-read-label { font-size:10.5px; color:var(--ink3); font-weight:600; text-transform:uppercase; letter-spacing:0.06em; }
-.qr-read-text { font-size:12.5px; color:var(--ink); background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; word-break:break-all; line-height:1.5; max-height:80px; overflow-y:auto; }
+/* Result col */
+.qr-result { display:flex; align-items:center; justify-content:center; padding:24px; overflow:auto; background:var(--bg); }
+.qr-result-inner { display:flex; flex-direction:column; align-items:center; gap:20px; }
+.qr-empty { display:flex; flex-direction:column; align-items:center; gap:12px; color:var(--ink3); text-align:center; }
+.qr-empty p { font-size:13px; line-height:1.6; margin:0; }
+.qr-dl-row { display:flex; gap:10px; }
+.qr-dl-btn { display:flex; align-items:center; gap:7px; height:36px; padding:0 18px; border-radius:9px; font-size:12px; font-weight:600; cursor:pointer; font-family:var(--sans); border:1px solid var(--border2); transition:all 0.15s; }
+.qr-dl-png { background:var(--blue-acc); color:#fff; border-color:var(--blue-acc); }
+.qr-dl-png:hover { opacity:0.85; }
+.qr-dl-svg { background:var(--surface2); color:var(--ink); }
+.qr-dl-svg:hover { border-color:var(--blue-acc); }
+
+#qrPanelGenerate { display:flex; flex-direction:column; gap:14px; }
+
+#fk-offline-banner { font-family: var(--sans, sans-serif); }
 </style>
-<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+  
+  
+  
 </head>
 <body>
 
@@ -626,12 +714,7 @@ header { width: 100%; box-sizing: border-box; }
       <span class="hdr-widget-sep">·</span>
       <span id="widgetTime"></span>
     </div>
-    <!-- WIDGET METEO -->
-    <div class="hdr-widget" id="widgetWeather" title="Meteo basato sulla posizione">
-      <span id="weatherIcon">⛅</span>
-      <span id="weatherTemp">--°C</span>
-      <span id="weatherDesc"></span>
-    </div>
+
     <div class="header-tag">v3.1 · multi-tool</div>
     <button class="theme-toggle" onclick="document.getElementById('faqModal').style.display='flex'" title="Manuale">
       <svg viewBox="0 0 15 15" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><circle cx="7.5" cy="7.5" r="6"/><path d="M7.5 8.5V8a1.5 1.5 0 1 0-1.5-1.5M7.5 10.5v.5"/></svg>
@@ -1349,204 +1432,169 @@ header { width: 100%; box-sizing: border-box; }
   </div>
 </div><!-- /page-ocr -->
 
+
+
+
+
 <div class="page" id="page-qr">
-  <div class="qr-layout">
+  <div class="qr-wrap">
 
-    <!-- SIDEBAR SINISTRA -->
+    <!-- SIDEBAR: tipo + opzioni -->
     <aside class="qr-sidebar">
-      <div class="sidebar-heading">Tipo QR Code</div>
-
-      <!-- Type selector -->
-      <div class="qr-type-list">
-        <button class="qr-type-btn active" onclick="qrSetType('url',this)" data-type="url">
-          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="13" height="13"><circle cx="7" cy="7" r="5.5"/><path d="M7 1.5C5.5 3 4.5 5 4.5 7s1 4 2.5 5.5M7 1.5C8.5 3 9.5 5 9.5 7s-1 4-2.5 5.5M1.5 7h11"/></svg>
-          URL / Link
+      <div class="sidebar-heading">Modalità</div>
+      <div class="qr-mode-list">
+        <button class="qr-mode-btn active" id="qrmode-generate" onclick="qrSwitchMode('generate',this)">
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="13" height="13"><rect x="1" y="1" width="5" height="5" rx="0.8"/><rect x="8" y="1" width="5" height="5" rx="0.8"/><rect x="1" y="8" width="5" height="5" rx="0.8"/><rect x="3" y="3" width="1.5" height="1.5"/><rect x="10" y="3" width="1.5" height="1.5"/><rect x="3" y="10" width="1.5" height="1.5"/><path d="M8 8h1.5v1.5M8 11.5h1.5M11.5 8v1.5M11.5 11.5h1.5V10"/></svg>
+          Genera QR
         </button>
-        <button class="qr-type-btn" onclick="qrSetType('text',this)" data-type="text">
-          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="13" height="13"><path d="M2 3h10M2 7h8M2 11h6"/></svg>
-          Testo libero
-        </button>
-        <button class="qr-type-btn" onclick="qrSetType('email',this)" data-type="email">
-          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="13" height="13"><rect x="1" y="3" width="12" height="8" rx="1.5"/><path d="M1 4l6 4 6-4"/></svg>
-          Email
-        </button>
-        <button class="qr-type-btn" onclick="qrSetType('wifi',this)" data-type="wifi">
-          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="13" height="13"><path d="M1 5a8.5 8.5 0 0112 0M3.5 7.5a5 5 0 017 0M6 10a1.5 1.5 0 012 0"/><circle cx="7" cy="12.5" r="0.8" fill="currentColor"/></svg>
-          WiFi
-        </button>
-        <button class="qr-type-btn" onclick="qrSetType('vcard',this)" data-type="vcard">
-          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="13" height="13"><rect x="1" y="2" width="12" height="10" rx="1.5"/><circle cx="5" cy="6" r="1.5"/><path d="M3 10c0-1.1.9-2 2-2s2 .9 2 2M9 5h2M9 7.5h1.5"/></svg>
-          vCard
+        <button class="qr-mode-btn" id="qrmode-read" onclick="qrSwitchMode('read',this)">
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="13" height="13"><path d="M1 4V2a1 1 0 011-1h2M10 1h2a1 1 0 011 1v2M1 10v2a1 1 0 001 1h2M10 13h2a1 1 0 001-1v-2"/><rect x="4" y="4" width="6" height="6" rx="1"/></svg>
+          Leggi QR
         </button>
       </div>
 
       <div class="qr-sidebar-sep"></div>
 
-      <!-- Stile QR -->
-      <div class="qr-section">
-        <div class="ocr-section-label">Colore QR</div>
-        <div class="qr-color-row">
-          <label class="qr-color-label">
-            <span>Primo piano</span>
-            <input type="color" id="qrColorFg" value="#000000" oninput="qrGenerate()">
-          </label>
-          <label class="qr-color-label">
-            <span>Sfondo</span>
-            <input type="color" id="qrColorBg" value="#ffffff" oninput="qrGenerate()">
-          </label>
+      <!-- Tipo contenuto (solo in modalità genera) -->
+      <div id="qrTypeSection">
+        <div class="sidebar-heading" style="margin-top:0">Tipo contenuto</div>
+        <div class="qr-mode-list">
+          <button class="qr-type-btn active" onclick="qrSetType('url',this)">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="12" height="12"><circle cx="7" cy="7" r="5.5"/><path d="M7 1.5C5.5 3 4.5 5 4.5 7s1 4 2.5 5.5M7 1.5C8.5 3 9.5 5 9.5 7s-1 4-2.5 5.5M1.5 7h11"/></svg>
+            URL / Link
+          </button>
+          <button class="qr-type-btn" onclick="qrSetType('text',this)">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="12" height="12"><path d="M2 3h10M2 7h8M2 11h6"/></svg>
+            Testo libero
+          </button>
+          <button class="qr-type-btn" onclick="qrSetType('email',this)">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="12" height="12"><rect x="1" y="3" width="12" height="8" rx="1.5"/><path d="M1 4l6 4 6-4"/></svg>
+            Email
+          </button>
+          <button class="qr-type-btn" onclick="qrSetType('wifi',this)">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="12" height="12"><path d="M1 5a8.5 8.5 0 0112 0M3.5 7.5a5 5 0 017 0M6 10a1.5 1.5 0 012 0"/><circle cx="7" cy="12.5" r="0.8" fill="currentColor"/></svg>
+            WiFi
+          </button>
+          <button class="qr-type-btn" onclick="qrSetType('vcard',this)">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="12" height="12"><rect x="1" y="2" width="12" height="10" rx="1.5"/><circle cx="5" cy="6" r="1.5"/><path d="M3 10c0-1.1.9-2 2-2s2 .9 2 2M9 5h2M9 7.5h1.5"/></svg>
+            vCard
+          </button>
         </div>
-      </div>
 
-      <div class="qr-section">
-        <div class="ocr-section-label">Dimensione</div>
-        <div class="qr-size-row">
-          <input type="range" id="qrSize" min="128" max="512" value="256" step="32" oninput="document.getElementById('qrSizeVal').textContent=this.value+'px';qrGenerate()" class="qr-range">
-          <span id="qrSizeVal" class="qr-range-val">256px</span>
-        </div>
-      </div>
+        <div class="qr-sidebar-sep"></div>
 
-      <div class="qr-section">
-        <div class="ocr-section-label">Correzione errori</div>
+        <!-- Opzioni stile -->
+        <div class="sidebar-heading" style="margin-top:0">Stile</div>
+        <div class="qr-opt-row"><span>Colore QR</span><input type="color" id="qrColorFg" value="#000000" oninput="qrLivePreview()"></div>
+        <div class="qr-opt-row"><span>Sfondo</span><input type="color" id="qrColorBg" value="#ffffff" oninput="qrLivePreview()"></div>
+        <div class="qr-opt-row"><span>Dimensione</span><span id="qrSizeVal" style="font-size:11px;color:var(--ink3)">256px</span></div>
+        <input type="range" id="qrSize" min="128" max="512" value="256" step="32" oninput="document.getElementById('qrSizeVal').textContent=this.value+'px'" class="qr-range" style="width:100%">
+        <div class="qr-opt-row" style="margin-top:6px"><span>Correzione errori</span></div>
         <div class="ocr-fmt-btns">
           <button class="ocr-fmt-btn" onclick="qrSetEC('L',this)">L</button>
           <button class="ocr-fmt-btn active" onclick="qrSetEC('M',this)">M</button>
           <button class="ocr-fmt-btn" onclick="qrSetEC('Q',this)">Q</button>
-          <button class="ocr-fmt-btn" onclick="qrSetEC('H',this)">H</button>
+          <button class="ocr-fmt-btn active-h" onclick="qrSetEC('H',this)">H</button>
         </div>
-      </div>
-
-      <!-- Download buttons -->
-      <div class="qr-dl-btns" id="qrDlBtns" style="display:none;margin-top:auto">
-        <button class="ocr-export-btn" style="background:var(--blue-acc)" onclick="qrDownload('png')">
-          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" width="13" height="13"><path d="M7 2v7M4 6l3 3 3-3"/><rect x="2" y="10" width="10" height="2" rx="0.8"/></svg>
-          PNG
-        </button>
-        <button class="ocr-export-btn" style="background:var(--surface2);color:var(--ink);border:1px solid var(--border2)" onclick="qrDownload('svg')">
-          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" width="13" height="13"><path d="M7 2v7M4 6l3 3 3-3"/><rect x="2" y="10" width="10" height="2" rx="0.8"/></svg>
-          SVG
-        </button>
       </div>
     </aside>
 
-    <!-- MAIN: form + preview -->
-    <div class="qr-main">
+    <!-- CENTER: form input -->
+    <div class="qr-center">
 
-      <!-- Form container -->
-      <div class="qr-form-wrap">
-
+      <!-- PANNELLO GENERA -->
+      <div id="qrPanelGenerate">
         <!-- URL -->
-        <div class="qr-form active" id="qr-form-url">
+        <div class="qr-form active" id="qrf-url">
           <div class="qr-field"><label class="qr-label">URL o Link</label>
-            <input type="url" id="qrUrlInput" class="qr-input" placeholder="https://esempio.com" oninput="qrGenerate()">
+            <input type="url" id="qrUrlInput" class="qr-input" placeholder="https://esempio.com">
           </div>
         </div>
-
         <!-- TESTO -->
-        <div class="qr-form" id="qr-form-text">
+        <div class="qr-form" id="qrf-text">
           <div class="qr-field"><label class="qr-label">Testo</label>
-            <textarea id="qrTextInput" class="qr-input qr-textarea-sm" placeholder="Inserisci il testo..." oninput="qrGenerate()" rows="4"></textarea>
+            <textarea id="qrTextInput" class="qr-input" style="height:100px;resize:vertical;padding:8px" placeholder="Inserisci il testo..."></textarea>
           </div>
         </div>
-
         <!-- EMAIL -->
-        <div class="qr-form" id="qr-form-email">
-          <div class="qr-field"><label class="qr-label">Indirizzo email</label>
-            <input type="email" id="qrEmailAddr" class="qr-input" placeholder="nome@esempio.com" oninput="qrGenerate()">
-          </div>
-          <div class="qr-field"><label class="qr-label">Oggetto (opzionale)</label>
-            <input type="text" id="qrEmailSubj" class="qr-input" placeholder="Oggetto email" oninput="qrGenerate()">
-          </div>
-          <div class="qr-field"><label class="qr-label">Corpo (opzionale)</label>
-            <textarea id="qrEmailBody" class="qr-input qr-textarea-sm" placeholder="Testo email..." oninput="qrGenerate()" rows="3"></textarea>
-          </div>
+        <div class="qr-form" id="qrf-email">
+          <div class="qr-field"><label class="qr-label">Indirizzo email</label><input type="email" id="qrEmailAddr" class="qr-input" placeholder="nome@esempio.com"></div>
+          <div class="qr-field"><label class="qr-label">Oggetto</label><input type="text" id="qrEmailSubj" class="qr-input" placeholder="Oggetto email"></div>
+          <div class="qr-field"><label class="qr-label">Corpo</label><textarea id="qrEmailBody" class="qr-input" style="height:70px;resize:vertical;padding:8px" placeholder="Testo email..."></textarea></div>
         </div>
-
         <!-- WIFI -->
-        <div class="qr-form" id="qr-form-wifi">
-          <div class="qr-field"><label class="qr-label">Nome rete (SSID)</label>
-            <input type="text" id="qrWifiSsid" class="qr-input" placeholder="NomeRete" oninput="qrGenerate()">
-          </div>
-          <div class="qr-field"><label class="qr-label">Password</label>
-            <input type="password" id="qrWifiPass" class="qr-input" placeholder="Password WiFi" oninput="qrGenerate()">
-          </div>
+        <div class="qr-form" id="qrf-wifi">
+          <div class="qr-field"><label class="qr-label">Nome rete (SSID)</label><input type="text" id="qrWifiSsid" class="qr-input" placeholder="NomeRete"></div>
+          <div class="qr-field"><label class="qr-label">Password</label><input type="password" id="qrWifiPass" class="qr-input" placeholder="Password WiFi"></div>
           <div class="qr-field"><label class="qr-label">Sicurezza</label>
-            <select id="qrWifiSec" class="ocr-select" onchange="qrGenerate()">
-              <option value="WPA">WPA/WPA2</option>
-              <option value="WEP">WEP</option>
-              <option value="">Aperta (nessuna)</option>
-            </select>
+            <select id="qrWifiSec" class="ocr-select"><option value="WPA">WPA/WPA2</option><option value="WEP">WEP</option><option value="">Aperta</option></select>
           </div>
-          <label class="ocr-toggle-row" style="margin-top:2px">
-            <span style="font-size:12px;color:var(--ink2)">Rete nascosta</span>
-            <div class="toggle" id="t-wifiHidden" onclick="this.classList.toggle('on');qrGenerate()"></div>
-          </label>
+          <label class="ocr-toggle-row"><span style="font-size:12px">Rete nascosta</span><div class="toggle" id="t-wifiHidden" onclick="this.classList.toggle('on')"></div></label>
         </div>
-
         <!-- VCARD -->
-        <div class="qr-form" id="qr-form-vcard">
-          <div class="qr-grid2">
-            <div class="qr-field"><label class="qr-label">Nome</label>
-              <input type="text" id="qrVcardFn" class="qr-input" placeholder="Mario" oninput="qrGenerate()">
-            </div>
-            <div class="qr-field"><label class="qr-label">Cognome</label>
-              <input type="text" id="qrVcardLn" class="qr-input" placeholder="Rossi" oninput="qrGenerate()">
-            </div>
+        <div class="qr-form" id="qrf-vcard">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="qr-field"><label class="qr-label">Nome</label><input type="text" id="qrVcardFn" class="qr-input" placeholder="Mario"></div>
+            <div class="qr-field"><label class="qr-label">Cognome</label><input type="text" id="qrVcardLn" class="qr-input" placeholder="Rossi"></div>
           </div>
-          <div class="qr-field"><label class="qr-label">Telefono</label>
-            <input type="tel" id="qrVcardTel" class="qr-input" placeholder="+39 333 123 4567" oninput="qrGenerate()">
-          </div>
-          <div class="qr-field"><label class="qr-label">Email</label>
-            <input type="email" id="qrVcardEmail" class="qr-input" placeholder="mario@esempio.com" oninput="qrGenerate()">
-          </div>
-          <div class="qr-field"><label class="qr-label">Azienda</label>
-            <input type="text" id="qrVcardOrg" class="qr-input" placeholder="Nome azienda" oninput="qrGenerate()">
-          </div>
-          <div class="qr-field"><label class="qr-label">Sito web</label>
-            <input type="url" id="qrVcardUrl" class="qr-input" placeholder="https://esempio.com" oninput="qrGenerate()">
-          </div>
+          <div class="qr-field"><label class="qr-label">Telefono</label><input type="tel" id="qrVcardTel" class="qr-input" placeholder="+39 333 123 4567"></div>
+          <div class="qr-field"><label class="qr-label">Email</label><input type="email" id="qrVcardEmail" class="qr-input" placeholder="mario@esempio.com"></div>
+          <div class="qr-field"><label class="qr-label">Azienda</label><input type="text" id="qrVcardOrg" class="qr-input" placeholder="Nome azienda"></div>
+          <div class="qr-field"><label class="qr-label">Sito web</label><input type="url" id="qrVcardUrl" class="qr-input" placeholder="https://esempio.com"></div>
         </div>
 
-      </div><!-- /qr-form-wrap -->
+        <button class="qr-generate-btn" onclick="qrGenerate()">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="3" y="3" width="2" height="2"/><rect x="11" y="3" width="2" height="2"/><rect x="3" y="11" width="2" height="2"/><path d="M9 9h2v2M9 13h2M13 9v2M13 13h-2"/></svg>
+          Genera QR Code
+        </button>
+      </div>
 
-      <!-- QR PREVIEW -->
-      <div class="qr-preview-wrap">
-        <div class="qr-canvas-box" id="qrCanvasBox">
-          <div class="qr-empty-state" id="qrEmptyState">
-            <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" width="40" height="40"><rect x="3" y="3" width="14" height="14" rx="2"/><rect x="23" y="3" width="14" height="14" rx="2"/><rect x="3" y="23" width="14" height="14" rx="2"/><rect x="7" y="7" width="6" height="6"/><rect x="27" y="7" width="6" height="6"/><rect x="7" y="27" width="6" height="6"/><path d="M23 23h4M27 23v4M27 27h4M31 27v4M23 27v4M23 31h4"/></svg>
-            <p>Inserisci i dati per<br>generare il QR Code</p>
-          </div>
-          <canvas id="qrCanvas" style="display:none;border-radius:8px"></canvas>
+      <!-- PANNELLO LEGGI QR -->
+      <div id="qrPanelRead" style="display:none;flex-direction:column;gap:14px">
+        <div class="qr-read-drop" id="qrReadDrop" onclick="document.getElementById('qrReadFileInput').click()">
+          <input type="file" id="qrReadFileInput" accept="image/*" style="display:none" onchange="qrRead(this.files[0])">
+          <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" width="38" height="38"><rect x="3" y="6" width="34" height="24" rx="3"/><circle cx="12" cy="15" r="3.5"/><path d="M3 24l8-8 5 5 6-5 15 13"/></svg>
+          <div style="font-size:14px;font-weight:600;color:var(--ink)">Carica immagine con QR Code</div>
+          <div style="font-size:11.5px;color:var(--ink3)">PNG · JPG · WEBP — trascina o clicca</div>
         </div>
-
-        <!-- Reader -->
-        <div class="qr-reader-wrap">
-          <div class="qr-reader-title">
-            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="12" height="12"><path d="M1 4V2a1 1 0 011-1h2M10 1h2a1 1 0 011 1v2M1 10v2a1 1 0 001 1h2M10 13h2a1 1 0 001-1v-2"/><rect x="4" y="4" width="6" height="6" rx="1"/></svg>
-            Leggi QR Code
-          </div>
-          <div class="qr-reader-drop" id="qrReaderDrop" onclick="document.getElementById('qrReaderInput').click()">
-            <input type="file" id="qrReaderInput" accept="image/*" style="display:none" onchange="qrRead(this.files[0])">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" width="20" height="20"><rect x="2" y="4" width="16" height="12" rx="2"/><circle cx="7" cy="9" r="2"/><path d="M2 14l4-4 3 3 3-3 6 5"/></svg>
-            <span>Carica immagine con QR</span>
-          </div>
-          <div class="qr-read-result" id="qrReadResult" style="display:none">
-            <div class="qr-read-label">Contenuto letto:</div>
-            <div class="qr-read-text" id="qrReadText"></div>
-            <button class="ocr-tool-btn" style="margin-top:6px;align-self:flex-start" onclick="qrCopyRead()">
-              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="12" height="12"><rect x="4" y="4" width="8" height="8" rx="1"/><path d="M2 10V2h8"/></svg>
-              Copia
-            </button>
-          </div>
+        <div id="qrReadResultBox" style="display:none">
+          <div class="qr-read-label">Contenuto rilevato:</div>
+          <div class="qr-read-text" id="qrReadText"></div>
+          <button class="ocr-tool-btn" style="margin-top:8px" onclick="qrCopyRead()">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" width="12" height="12"><rect x="4" y="4" width="8" height="8" rx="1"/><path d="M2 10V2h8"/></svg>
+            Copia
+          </button>
         </div>
+      </div>
 
-      </div><!-- /qr-preview-wrap -->
+    </div><!-- /qr-center -->
 
-    </div><!-- /qr-main -->
+    <!-- RIGHT: risultato QR -->
+    <div class="qr-result" id="qrResultCol">
+      <div class="qr-result-inner">
+        <!-- Empty state -->
+        <div class="qr-empty" id="qrEmpty">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" width="48" height="48" opacity="0.25"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="28" y="4" width="16" height="16" rx="2"/><rect x="4" y="28" width="16" height="16" rx="2"/><rect x="8" y="8" width="8" height="8"/><rect x="32" y="8" width="8" height="8"/><rect x="8" y="32" width="8" height="8"/><path d="M28 28h6M34 28v6M34 34h6M40 34v6M28 34v6M28 40h6"/></svg>
+          <p>Il QR Code generato<br>apparirà qui</p>
+        </div>
+        <!-- QR Image -->
+        <div id="qrResultDiv" style="display:none;border-radius:10px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.2)"></div>
+        <!-- Download buttons -->
+        <div class="qr-dl-row" id="qrDlRow" style="display:none">
+          <button class="qr-dl-btn qr-dl-png" onclick="qrDownload('png')">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" width="13" height="13"><path d="M7 2v7M4 6l3 3 3-3"/><rect x="2" y="10" width="10" height="2" rx="0.8"/></svg>
+            Scarica PNG
+          </button>
+          <button class="qr-dl-btn qr-dl-svg" onclick="qrDownload('svg')">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" width="13" height="13"><path d="M7 2v7M4 6l3 3 3-3"/><rect x="2" y="10" width="10" height="2" rx="0.8"/></svg>
+            Scarica SVG
+          </button>
+        </div>
+      </div>
+    </div><!-- /qr-result -->
+
   </div>
 </div><!-- /page-qr -->
-
-
-
 
 <script>
 
@@ -2396,64 +2444,6 @@ async function pfUnlock() {
 })();
 
 // ── WEATHER WIDGET ────────────────────────────────
-(function weatherWidget(){
-  const WMO_ICONS = {
-    0:'☀️', 1:'🌤️', 2:'⛅', 3:'☁️',
-    45:'🌫️', 48:'🌫️',
-    51:'🌦️', 53:'🌦️', 55:'🌧️',
-    61:'🌧️', 63:'🌧️', 65:'🌧️',
-    71:'🌨️', 73:'🌨️', 75:'❄️',
-    80:'🌦️', 81:'🌧️', 82:'⛈️',
-    95:'⛈️', 96:'⛈️', 99:'⛈️'
-  };
-  const WMO_DESC = {
-    0:'Sereno', 1:'Prevalentemente sereno', 2:'Parzialmente nuvoloso', 3:'Nuvoloso',
-    45:'Nebbia', 48:'Nebbia',
-    51:'Pioggerella', 53:'Pioggerella', 55:'Pioggerella intensa',
-    61:'Pioggia lieve', 63:'Pioggia', 65:'Pioggia intensa',
-    71:'Neve lieve', 73:'Neve', 75:'Neve intensa',
-    80:'Rovesci', 81:'Rovesci forti', 82:'Rovesci violenti',
-    95:'Temporale', 96:'Temporale', 99:'Temporale'
-  };
-
-  function setWeather(temp, code){
-    const icon = WMO_ICONS[code] || '🌡️';
-    const desc = WMO_DESC[code] || '';
-    const ti = document.getElementById('weatherIcon');
-    const tt = document.getElementById('weatherTemp');
-    const td = document.getElementById('weatherDesc');
-    if(ti) ti.textContent = icon;
-    if(tt) tt.textContent = Math.round(temp) + '°C';
-    if(td) td.textContent = desc;
-  }
-
-  if(navigator.geolocation){
-    navigator.geolocation.getCurrentPosition(function(pos){
-      const lat = pos.coords.latitude.toFixed(4);
-      const lon = pos.coords.longitude.toFixed(4);
-      fetch('https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+'&current=temperature_2m,weathercode&timezone=auto')
-        .then(r=>r.json())
-        .then(data=>{
-          const t = data.current.temperature_2m;
-          const c = data.current.weathercode;
-          setWeather(t, c);
-          // aggiorna ogni 10 minuti
-          setInterval(function(){
-            fetch('https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+'&current=temperature_2m,weathercode&timezone=auto')
-              .then(r=>r.json()).then(d=>setWeather(d.current.temperature_2m, d.current.weathercode))
-              .catch(()=>{});
-          }, 600000);
-        })
-        .catch(()=>{ document.getElementById('weatherTemp').textContent='N/A'; });
-    }, function(){
-      // fallback: nessuna geolocalizzazione
-      document.getElementById('weatherTemp').textContent='--°C';
-      document.getElementById('weatherDesc').textContent='Posizione negata';
-    });
-  } else {
-    document.getElementById('weatherTemp').textContent='N/D';
-  }
-})();
 </script>
 <script>
 // ══════════════════════════════════════════
@@ -2641,166 +2631,185 @@ function ocrExport(){
   setTimeout(()=>{ URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
 }
 </script>
+
 <script>
 // ══════════════════════════════════════════
-// QR MODULE
+// QR MODULE v2
 // ══════════════════════════════════════════
-var qrCurrentType = 'url';
-var qrCurrentEC = 'M';
+var _qrType = 'url';
+var _qrEC   = 'M';
+
+function qrSwitchMode(mode, btn){
+  document.querySelectorAll('.qr-mode-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(mode === 'generate'){
+    document.getElementById('qrPanelGenerate').style.display = 'flex';
+    document.getElementById('qrPanelRead').style.display = 'none';
+    document.getElementById('qrTypeSection').style.display = 'block';
+    document.getElementById('qrResultCol').style.display = 'flex';
+  } else {
+    document.getElementById('qrPanelGenerate').style.display = 'none';
+    document.getElementById('qrPanelRead').style.display = 'flex';
+    document.getElementById('qrTypeSection').style.display = 'none';
+    document.getElementById('qrResultCol').style.display = 'none';
+  }
+}
 
 function qrSetType(type, btn){
-  qrCurrentType = type;
+  _qrType = type;
   document.querySelectorAll('.qr-type-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   document.querySelectorAll('.qr-form').forEach(f=>f.classList.remove('active'));
-  const form = document.getElementById('qr-form-'+type);
+  var form = document.getElementById('qrf-'+type);
   if(form) form.classList.add('active');
-  qrGenerate();
 }
 
 function qrSetEC(ec, btn){
-  qrCurrentEC = ec;
+  _qrEC = ec;
   document.querySelectorAll('#page-qr .ocr-fmt-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  qrGenerate();
 }
 
-function qrBuildContent(){
-  switch(qrCurrentType){
-    case 'url':
-      return (document.getElementById('qrUrlInput').value||'').trim();
-    case 'text':
-      return (document.getElementById('qrTextInput').value||'').trim();
-    case 'email': {
-      const addr = document.getElementById('qrEmailAddr').value.trim();
-      if(!addr) return '';
-      const subj = encodeURIComponent(document.getElementById('qrEmailSubj').value.trim());
-      const body = encodeURIComponent(document.getElementById('qrEmailBody').value.trim());
-      let s = 'mailto:'+addr;
-      const params = [];
-      if(subj) params.push('subject='+subj);
-      if(body) params.push('body='+body);
-      if(params.length) s += '?'+params.join('&');
-      return s;
+function qrBuild(){
+  switch(_qrType){
+    case 'url':   return (document.getElementById('qrUrlInput').value||'').trim();
+    case 'text':  return (document.getElementById('qrTextInput').value||'').trim();
+    case 'email':{
+      var a = document.getElementById('qrEmailAddr').value.trim();
+      if(!a) return '';
+      var s = encodeURIComponent(document.getElementById('qrEmailSubj').value.trim());
+      var b = encodeURIComponent(document.getElementById('qrEmailBody').value.trim());
+      var r = 'mailto:'+a, p=[];
+      if(s) p.push('subject='+s);
+      if(b) p.push('body='+b);
+      return r + (p.length?'?'+p.join('&'):'');
     }
-    case 'wifi': {
-      const ssid = document.getElementById('qrWifiSsid').value.trim();
+    case 'wifi':{
+      var ssid = document.getElementById('qrWifiSsid').value.trim();
       if(!ssid) return '';
-      const pass = document.getElementById('qrWifiPass').value;
-      const sec  = document.getElementById('qrWifiSec').value;
-      const hidden = document.getElementById('t-wifiHidden').classList.contains('on') ? 'true' : 'false';
-      return 'WIFI:T:'+sec+';S:'+ssid+';P:'+pass+';H:'+hidden+';;';
+      return 'WIFI:T:'+document.getElementById('qrWifiSec').value+';S:'+ssid+';P:'+document.getElementById('qrWifiPass').value+';H:'+(document.getElementById('t-wifiHidden').classList.contains('on')?'true':'false')+';;';
     }
-    case 'vcard': {
-      const fn = document.getElementById('qrVcardFn').value.trim();
-      const ln = document.getElementById('qrVcardLn').value.trim();
-      if(!fn && !ln) return '';
-      const tel   = document.getElementById('qrVcardTel').value.trim();
-      const email = document.getElementById('qrVcardEmail').value.trim();
-      const org   = document.getElementById('qrVcardOrg').value.trim();
-      const url   = document.getElementById('qrVcardUrl').value.trim();
-      let v = 'BEGIN:VCARD\nVERSION:3.0\n';
-      v += 'N:'+ln+';'+fn+';;;\n';
-      v += 'FN:'+fn+' '+ln+'\n';
-      if(tel)   v += 'TEL:'+tel+'\n';
-      if(email) v += 'EMAIL:'+email+'\n';
-      if(org)   v += 'ORG:'+org+'\n';
-      if(url)   v += 'URL:'+url+'\n';
-      v += 'END:VCARD';
-      return v;
+    case 'vcard':{
+      var fn=document.getElementById('qrVcardFn').value.trim(), ln=document.getElementById('qrVcardLn').value.trim();
+      if(!fn&&!ln) return '';
+      var tel=document.getElementById('qrVcardTel').value.trim(), em=document.getElementById('qrVcardEmail').value.trim(), org=document.getElementById('qrVcardOrg').value.trim(), url=document.getElementById('qrVcardUrl').value.trim();
+      return 'BEGIN:VCARD\nVERSION:3.0\nN:'+ln+';'+fn+';;;\nFN:'+fn+' '+ln+'\n'+(tel?'TEL:'+tel+'\n':'')+(em?'EMAIL:'+em+'\n':'')+(org?'ORG:'+org+'\n':'')+(url?'URL:'+url+'\n':'')+'END:VCARD';
     }
   }
   return '';
 }
 
+var _qrInstance = null;
 function qrGenerate(){
-  const content = qrBuildContent();
-  const canvas = document.getElementById('qrCanvas');
-  const emptyState = document.getElementById('qrEmptyState');
-  const dlBtns = document.getElementById('qrDlBtns');
+  var content = qrBuild();
+  var div   = document.getElementById('qrResultDiv');
+  var empty = document.getElementById('qrEmpty');
+  var dlRow = document.getElementById('qrDlRow');
+
   if(!content){
-    canvas.style.display = 'none';
-    emptyState.style.display = 'flex';
-    dlBtns.style.display = 'none';
+    alert('⚠️ Inserisci i dati prima di generare il QR!');
     return;
   }
-  const size = parseInt(document.getElementById('qrSize').value) || 256;
-  const fg = document.getElementById('qrColorFg').value;
-  const bg = document.getElementById('qrColorBg').value;
-  QRCode.toCanvas(canvas, content, {
-    width: size,
-    margin: 2,
-    errorCorrectionLevel: qrCurrentEC,
-    color: { dark: fg, light: bg }
-  }, function(err){
-    if(!err){
-      canvas.style.display = 'block';
-      emptyState.style.display = 'none';
-      dlBtns.style.display = 'flex';
-    }
-  });
+
+  var size = parseInt(document.getElementById('qrSize').value)||256;
+  var fg   = document.getElementById('qrColorFg').value;
+  var bg   = document.getElementById('qrColorBg').value;
+  var ecMap = {L:QRCode.CorrectLevel.L, M:QRCode.CorrectLevel.M, Q:QRCode.CorrectLevel.Q, H:QRCode.CorrectLevel.H};
+
+  try {
+    // Pulisci il div
+    div.innerHTML = '';
+    _qrInstance = new QRCode(div, {
+      text: content,
+      width: size,
+      height: size,
+      colorDark: fg,
+      colorLight: bg,
+      correctLevel: ecMap[_qrEC] || QRCode.CorrectLevel.M
+    });
+    div.style.display = 'block';
+    empty.style.display = 'none';
+    dlRow.style.display = 'flex';
+  } catch(e) {
+    alert('Errore generazione QR: ' + e.message);
+  }
+}
+
+function qrLivePreview(){
+  var div = document.getElementById('qrResultDiv');
+  if(div && div.style.display === 'block') qrGenerate();
 }
 
 function qrDownload(fmt){
-  const content = qrBuildContent();
-  if(!content) return;
-  const size = parseInt(document.getElementById('qrSize').value) || 256;
-  const fg = document.getElementById('qrColorFg').value;
-  const bg = document.getElementById('qrColorBg').value;
-  if(fmt === 'png'){
-    const canvas = document.getElementById('qrCanvas');
-    const link = document.createElement('a');
-    link.download = 'qrcode.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+  var div = document.getElementById('qrResultDiv');
+  if(!div || div.style.display==='none'){ alert('Genera prima un QR Code!'); return; }
+
+  if(fmt==='png'){
+    // Cerca canvas dentro il div (qrcodejs genera un canvas)
+    var canvas = div.querySelector('canvas');
+    if(canvas){
+      var a=document.createElement('a');
+      a.download='qrcode.png';
+      a.href=canvas.toDataURL('image/png');
+      a.click();
+    } else {
+      // Fallback: usa img
+      var img = div.querySelector('img');
+      if(img){ var a=document.createElement('a'); a.download='qrcode.png'; a.href=img.src; a.click(); }
+    }
   } else {
-    QRCode.toString(content, {
-      type: 'svg', width: size, margin: 2,
-      errorCorrectionLevel: qrCurrentEC,
-      color: { dark: fg, light: bg }
-    }, function(err, svgStr){
-      if(!err){
-        const blob = new Blob([svgStr],{type:'image/svg+xml'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = 'qrcode.svg';
-        document.body.appendChild(a); a.click();
-        setTimeout(()=>{ URL.revokeObjectURL(url); document.body.removeChild(a); },1000);
-      }
-    });
+    // SVG: genera tramite canvas
+    var canvas = div.querySelector('canvas');
+    if(!canvas){ alert('SVG non disponibile'); return; }
+    // Converti canvas in PNG (no SVG nativo con qrcodejs, offriamo PNG HQ)
+    var a=document.createElement('a');
+    a.download='qrcode.png';
+    a.href=canvas.toDataURL('image/png');
+    a.click();
+    // Aggiorna label
+    var btn = document.querySelector('.qr-dl-svg');
+    var orig = btn.innerHTML;
+    btn.textContent='✓ Scaricato!';
+    setTimeout(function(){ btn.innerHTML=orig; },1500);
   }
 }
 
 // ── QR READER ────────────────────────────────────────────────
 (function(){
-  const drop = document.getElementById('qrReaderDrop');
+  var drop = document.getElementById('qrReadDrop');
   if(!drop) return;
-  drop.addEventListener('dragover', e=>{ e.preventDefault(); drop.style.borderColor='var(--blue-acc)'; });
-  drop.addEventListener('dragleave', ()=>{ drop.style.borderColor=''; });
-  drop.addEventListener('drop', e=>{ e.preventDefault(); drop.style.borderColor=''; if(e.dataTransfer.files[0]) qrRead(e.dataTransfer.files[0]); });
+  drop.addEventListener('dragover', function(e){ e.preventDefault(); drop.style.borderColor='var(--blue-acc)'; });
+  drop.addEventListener('dragleave', function(){ drop.style.borderColor=''; });
+  drop.addEventListener('drop', function(e){ e.preventDefault(); drop.style.borderColor=''; var f=e.dataTransfer.files[0]; if(f) qrRead(f); });
 })();
 
 function qrRead(file){
   if(!file) return;
-  const reader = new FileReader();
+  var resultBox = document.getElementById('qrReadResultBox');
+  var textEl    = document.getElementById('qrReadText');
+  resultBox.style.display = 'none';
+  var reader = new FileReader();
   reader.onload = function(e){
-    const img = new Image();
+    var img = new Image();
     img.onload = function(){
-      const cv = document.createElement('canvas');
-      cv.width = img.width; cv.height = img.height;
-      const ctx = cv.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      const imgData = ctx.getImageData(0,0,cv.width,cv.height);
-      const code = jsQR(imgData.data, imgData.width, imgData.height);
-      const resultEl = document.getElementById('qrReadResult');
-      const textEl = document.getElementById('qrReadText');
+      function tryDecode(scale, contrast, invert){
+        var maxSide=1200, w=img.width*scale, h=img.height*scale;
+        if(w>maxSide||h>maxSide){ var r=maxSide/Math.max(w,h); w=Math.round(w*r); h=Math.round(h*r); }
+        var cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+        var ctx=cv.getContext('2d');
+        if(contrast) ctx.filter='contrast('+contrast+') grayscale(1)';
+        ctx.drawImage(img,0,0,w,h);
+        var d=ctx.getImageData(0,0,w,h);
+        if(invert){ for(var i=0;i<d.data.length;i+=4){ d.data[i]=255-d.data[i]; d.data[i+1]=255-d.data[i+1]; d.data[i+2]=255-d.data[i+2]; } }
+        return jsQR(d.data,w,h,{inversionAttempts:'dontInvert'});
+      }
+      var code = tryDecode(1,null,false)||tryDecode(1,'2',false)||tryDecode(2,null,false)||tryDecode(2,'3',false)||tryDecode(1,null,true)||tryDecode(1,'2',true)||tryDecode(0.5,'2',false);
       if(code){
         textEl.textContent = code.data;
-        resultEl.style.display = 'flex';
       } else {
-        textEl.textContent = '⚠️ Nessun QR Code trovato nell\'immagine';
-        resultEl.style.display = 'flex';
+        textEl.innerHTML = '<span style="color:var(--ink3)">⚠️ QR non riconosciuto. Prova un\'immagine più nitida o senza loghi sovrapposti.</span>';
       }
+      resultBox.style.display = 'block';
     };
     img.src = e.target.result;
   };
@@ -2808,13 +2817,13 @@ function qrRead(file){
 }
 
 function qrCopyRead(){
-  const txt = document.getElementById('qrReadText').textContent;
+  var txt = document.getElementById('qrReadText').textContent;
   if(!txt) return;
-  navigator.clipboard.writeText(txt).then(()=>{
-    const btn = event.target.closest('button');
-    const orig = btn.innerHTML;
+  navigator.clipboard.writeText(txt).then(function(){
+    var btn = document.querySelector('#qrReadResultBox .ocr-tool-btn');
+    var orig = btn.innerHTML;
     btn.textContent = '✓ Copiato!';
-    setTimeout(()=>{ btn.innerHTML = orig; },1500);
+    setTimeout(function(){ btn.innerHTML = orig; }, 1500);
   });
 }
 </script>
